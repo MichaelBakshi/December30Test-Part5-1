@@ -1,0 +1,179 @@
+--a--------------------------
+create table roles (
+    id bigint primary key,
+    name text
+);
+
+create  table sites (
+    id bigint primary key ,
+    name text,
+    address text
+);
+
+create  table workers (
+    id bigint primary key ,
+    name text,
+    phone text,
+    salary int,
+    role_id bigint references roles(id),
+    site_id bigint references sites(id)
+);
+
+insert into roles (name)
+values ('carpenter');
+insert into roles (name)
+values ('decorator');
+insert into roles (name)
+values ('welder');
+insert into roles (name)
+values ('plumber');
+insert into roles (name)
+values ('electrician');
+
+insert into sites (name, address)
+values ('ali','shomron');
+insert into sites (name, address)
+values ('northern savyon','kfar vradim');
+insert into sites (name, address)
+values ('on lake','yeruham');
+insert into sites (name, address)
+values ('lions gate','jerusalem');
+insert into sites (name, address)
+values ('vered near sea','jericho');
+
+insert into workers ( name, phone, salary, role_id, site_id)
+values ('John','121212',0,1,2);
+insert into workers ( name, phone, salary, role_id, site_id)
+values ('Wick','232323',0,2,3);
+insert into workers ( name, phone, salary, role_id, site_id)
+values ('Mad','343434',0,5,1);
+insert into workers ( name, phone, salary, role_id, site_id)
+values ('Max','545454',0,3,5);
+insert into workers ( name, phone, salary, role_id, site_id)
+values ('Stephen','686868',0,4,4);
+
+--b--------------------------------------
+create  function get_all_workers_info ()
+returns TABLE(id bigint, name text, phone text, salary int, role_id bigint,site_id bigint, role_name text )
+language plpgsql as
+    $$
+    begin
+        return query
+     SELECT w.id,w.name, w.phone, w.salary, w.role_id, w.site_id , r.name  FROM workers w
+            join roles r on w.role_id = r.id;
+    end;
+    $$;
+select * from get_all_workers_info();
+
+
+--c---------------------------------------
+create or replace function get_site_with_max_workers ()
+returns TABLE(number_of_workers bigint, site_name text )
+language plpgsql as
+   $$
+    begin
+        return query
+     SELECT  count(w.site_id) as number_of_workers, s.name as site_name FROM workers w
+            join sites s on w.site_id = s.id
+            group by w.site_id,s.name
+            order by w.site_id
+            limit 1;
+    end;
+    $$;
+select * from get_site_with_max_workers();
+
+--d----------------------------------------
+create or replace function get_all_workers_from_specific_site (site_id bigint)
+returns table ( worker_name text)
+language plpgsql as
+$$
+begin
+        return query
+    select w.name from workers w
+    join sites on w.site_id = sites.id;
+end;
+$$;
+select * from get_all_workers_from_specific_site(2);
+
+--e--------------------------------------------
+create or replace  procedure update_salary_by_role_id (_role_id bigint)
+language plpgsql as
+    $$
+    begin
+        if (_role_id=1)
+        then
+        update workers
+            set  salary = 20000
+        where workers.role_id=_role_id;
+        else
+            update workers set salary = (random ()*5000)::int+5000
+            where workers.role_id>=_role_id;
+        end if;
+    end;
+    $$;
+call update_salary_by_role_id(1);
+
+--e2--------------------------------------------
+create or replace  procedure another_update_salary_by_role_id ()
+language plpgsql as
+    $$
+    begin
+        update workers
+            set  salary = 2000000
+        where role_id=1;
+    end;
+    $$;
+call another_update_salary_by_role_id();
+
+--f-------------------------------------------
+create or replace function avg_salary_by_role ( _role_id bigint)
+returns TABLE(avg_salary bigint)
+language plpgsql as
+   $$
+
+    begin
+        return query
+     select (t1.total_salary)/ (t1.total_number_of_workers) as average_salary from
+            (SELECT  sum(w.salary) as total_salary, count(w.id) as total_number_of_workers, r.name FROM workers w
+            join roles r on w.role_id = r.id
+            where w.role_id=_role_id
+            group by r.name,w.role_id)t1;
+            --order by w.site_id
+             --group by  t1.site_name;
+    end;
+    $$;
+select * from avg_salary_by_role(1);
+
+--g-------------------------------
+create or replace function avg_number_of_workers_at_site ()
+returns TABLE(avg_number_of_workers double precision)
+language plpgsql as
+   $$
+    declare
+       average_of_workers  double precision;
+    begin
+        return query
+     select (t1.number_of_workers)/ (t1.total_number_of_sites) as average_number_of_workers from
+            (SELECT  count(w.site_id) as number_of_workers, count(s.id) as total_number_of_sites FROM workers w
+            join sites s on w.site_id = s.id)t1;
+            --group by w.site_id,s.id
+            --order by w.site_id
+            --)t1 group by  t1.site_name;
+    end;
+    $$;
+select * from avg_number_of_workers_at_site();
+
+
+
+
+create or replace  procedure update_movie (_id bigint, _title text, _release_date date, _price double precision)
+language plpgsql as
+    $$
+    BEGIN
+        UPDATE "Movies"
+        SET "Title" = _title, "Release_date" = _release_date, "Price" = _price
+        where "id" = _id;
+    end;
+    $$;
+
+call  update_movie (1, 'Batman returns', '2020-10-10', 49.5);
